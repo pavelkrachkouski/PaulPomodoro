@@ -10,6 +10,8 @@ public class MainController {
 
     private boolean ifTimerRunning = false; //если таймер запущен
     private int tomatoCount = 1; //количество пройденных циклов
+    private boolean paused = false; //количество пройденных циклов
+    private boolean stop = false; //количество пройденных циклов
 
     private final String TOMATO_DURATION = "25"; //продолжительность времени работы
     private final String BREAK_DURATION = "5"; //продолжительность времени отдыха
@@ -45,11 +47,26 @@ public class MainController {
     }
 
 
+    @FXML
+    protected void onStopButtonClick() {
+        if (ifTimerRunning) {
+            stop = true;
+        }
+        else {
+            System.out.println("Метод помидора не запущен!");
+        }
+    }
+
+
     public void startTimerWithParam(String minutes) {
         if (!ifTimerRunning) {
             ifTimerRunning = true;
             Thread tomatoTimer = new Thread(new TimerThread(), minutes);
             tomatoTimer.start();
+        }
+        else {
+            paused = !paused;
+            System.out.println(paused);
         }
     }
 
@@ -62,18 +79,33 @@ public class MainController {
         public void run() {
             System.out.println("Start thread: " + Thread.currentThread().getName());
 
-            if (tomatoCount % 2 != 0) {
-                SoundClass.playStart();
-                Platform.runLater(()->informationMessage.setText("Начинаем работу!"));
-            } else {
-                SoundClass.playBreak();
-                Platform.runLater(()->informationMessage.setText("Время отдохнуть!"));
+            if (!stop) {
+                if (tomatoCount % 2 != 0) {
+                    SoundClass.playStart();
+                    Platform.runLater(() -> informationMessage.setText("Начинаем работу!"));
+                } else {
+                    SoundClass.playBreak();
+                    Platform.runLater(() -> informationMessage.setText("Время отдохнуть!"));
+                }
             }
 
             int leftSeconds = TimeConverter.minToSec(Integer.parseInt(Thread.currentThread().getName())); //осталось секунд
             int passedSeconds = 0; //прошло секунд
 
+
+
             for(int i = leftSeconds; i >= 0 ; i--) {
+
+                if (paused) {
+                    System.out.println(i);
+                    i++;
+                    continue;
+                }
+
+                if (stop) {
+                    if (tomatoCount == 8) stop = false;
+                    break;
+                }
 
                 try {
                     Thread.sleep(1000);
@@ -95,6 +127,8 @@ public class MainController {
                 });
                 /* изменение gui в потоке */
             }
+
+
 
             /* блок который выполняется по завершению таймера */
             Platform.runLater(()->{
