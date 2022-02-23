@@ -3,6 +3,7 @@ package pomodoro.paulpomodoro;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.chart.PieChart;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 
 
@@ -10,8 +11,10 @@ public class MainController {
 
     private boolean ifTimerRunning = false; //если таймер запущен
     private int tomatoCount = 1; //количество пройденных циклов
+
     private boolean paused = false; //количество пройденных циклов
     private boolean stop = false; //количество пройденных циклов
+    private boolean skip = false; //количество пройденных циклов
 
     private final String TOMATO_DURATION = "25"; //продолжительность времени работы
     private final String BREAK_DURATION = "5"; //продолжительность времени отдыха
@@ -25,19 +28,32 @@ public class MainController {
     private Label informationMessage;
 
     @FXML
+    private Label labelIfPaused;
+
+    @FXML
+    private Button buttonStart;
+
+    @FXML
+    private Button buttonStop;
+
+    @FXML
+    private Button buttonSkip;
+
+    @FXML
     private PieChart pieChart;
     private PieChart.Data sliceLeftTime;
     private PieChart.Data  slicePassedTime;
 
     @FXML
     public void initialize() {
-        /* инициализация диаграммы */
-        sliceLeftTime = new PieChart.Data("Left", 1); //задаем значение оставшегося времени
+        /* инициализация стартового значения диаграммы */
+        sliceLeftTime = new PieChart.Data("Left", Integer.parseInt(TOMATO_DURATION)); //задаем значение оставшегося времени
         slicePassedTime = new PieChart.Data("Passed", 0); //задаем значение прошедшего времени
         pieChart.getData().add(sliceLeftTime); //добавляем значение оставшегося времени на диаграмму
         pieChart.getData().add(slicePassedTime); //добавляем значение прошедшего времени на диаграмму
         pieChart.setStartAngle(90); //устанавливаем стартовый угол для диаграммы
 
+        /* стартовое значение таймера */
         labelTimeLeft.setText(TimeConverter.secondsToMinAndSec(Integer.parseInt(TOMATO_DURATION) * 60));
     }
 
@@ -45,7 +61,6 @@ public class MainController {
     protected void onStartButtonClick() {
         startTimerWithParam(TOMATO_DURATION);
     }
-
 
     @FXML
     protected void onStopButtonClick() {
@@ -57,18 +72,18 @@ public class MainController {
         }
     }
 
-
-    public void startTimerWithParam(String minutes) {
-        if (!ifTimerRunning) {
-            ifTimerRunning = true;
-            Thread tomatoTimer = new Thread(new TimerThread(), minutes);
-            tomatoTimer.start();
+    @FXML
+    protected void onSkipButtonClick() {
+        if (ifTimerRunning) {
+            skip = true;
         }
         else {
-            paused = !paused;
-            System.out.println(paused);
+            System.out.println("Метод помидора не запущен!");
         }
     }
+
+
+
 
 
 
@@ -77,25 +92,30 @@ public class MainController {
 
         @Override
         public void run() {
-            System.out.println("Start thread: " + Thread.currentThread().getName());
-
-            if (!stop) {
-                if (tomatoCount % 2 != 0) {
-                    SoundClass.playStart();
-                    Platform.runLater(() -> informationMessage.setText("Начинаем работу!"));
-                } else {
-                    SoundClass.playBreak();
-                    Platform.runLater(() -> informationMessage.setText("Время отдохнуть!"));
-                }
-            }
+            System.out.println("Start thread: " + Thread.currentThread().getName()); //сообщение о том что поток запущен
 
             int leftSeconds = TimeConverter.minToSec(Integer.parseInt(Thread.currentThread().getName())); //осталось секунд
             int passedSeconds = 0; //прошло секунд
+
+            if (!stop) {
+                if (tomatoCount % 2 != 0) {
+                    Platform.runLater(() -> {
+                        informationMessage.setText("Let's work!");
+                        SoundClass.playStart();
+                    });
+                } else {
+                    Platform.runLater(() -> {
+                        informationMessage.setText("Let's rest!");
+                        SoundClass.playBreak();
+                    });
+                }
+            }
 
 
 
             for(int i = leftSeconds; i >= 0 ; i--) {
 
+                //если нажата кнопка паузы цикл стоит на месте (увеличиваем значение итератора, а потом сбрасываем)
                 if (paused) {
                     System.out.println(i);
                     try {
@@ -106,9 +126,16 @@ public class MainController {
                     i++;
                     continue;
                 }
-
+                //если нажали стоп, пропускам все "помидоры"
                 if (stop) {
-                    if (tomatoCount == 8) stop = false;
+                    if (tomatoCount == 8) {
+                        stop = false;
+                    }
+                    break;
+                }
+                //если нажали пропустить, пропускам один помидор "помидоры"
+                if (skip) {
+                    skip = false;
                     break;
                 }
 
@@ -118,11 +145,11 @@ public class MainController {
                     e.printStackTrace();
                 }
 
-                leftSeconds -= 1;
-                passedSeconds += 1;
-
-                final int finalLeftSeconds = leftSeconds; //В лямбда выражение можно передавать только переменные значение которым присвоено один раз
-                final int finalPassedSeconds = passedSeconds; //В лямбда выражение можно передавать только переменные значение которым присвоено один раз
+                leftSeconds--;
+                passedSeconds++;
+                //В лямбда выражение можно передавать только константы
+                final int finalLeftSeconds = leftSeconds;
+                final int finalPassedSeconds = passedSeconds;
 
                 /* изменение gui в потоке */
                 Platform.runLater(() -> {
@@ -137,35 +164,84 @@ public class MainController {
 
             /* блок который выполняется по завершению таймера */
             Platform.runLater(()->{
-                sliceLeftTime.setPieValue(1); //возвращаем диаграмму в исходное состояние
-                slicePassedTime.setPieValue(0); //возвращаем диаграмму в исходное состояние
-                labelTimeLeft.setText("00:00"); //зануляем лэйбл таймера
                 ifTimerRunning = false; //переменная определяющая запущен ли поток таймера
-
                 tomatoCount++; //считаем количество выполненных циклов
 
                 //пока количество циклов меньше 8
                 if (tomatoCount <= 8)
                 {
                     switch (tomatoCount) {
-                        case 1, 3, 5, 7 -> startTimerWithParam(TOMATO_DURATION); //вызываем функцию которая снова запускает этот поток
-                        case 2, 4, 6 -> startTimerWithParam(BREAK_DURATION); //вызываем функцию которая снова запускает этот поток
-                        case 8 -> startTimerWithParam(LONG_BREAK_DURATION); //вызываем функцию которая снова запускает этот поток
-                        default -> System.out.println("Упс, что-то пошло не так!");
+                        case 1, 3, 5, 7 -> {
+                            setTimerStartValue(TOMATO_DURATION);
+                            startTimerWithParam(TOMATO_DURATION); //вызываем функцию которая снова запускает этот поток
+                        }
+                        case 2, 4, 6 -> {
+                            setTimerStartValue(BREAK_DURATION);
+                            startTimerWithParam(BREAK_DURATION); //вызываем функцию которая снова запускает этот поток
+                        }
+                        case 8 -> {
+                            setTimerStartValue(LONG_BREAK_DURATION);
+                            startTimerWithParam(LONG_BREAK_DURATION); //вызываем функцию которая снова запускает этот поток
+                        }
+                        default -> System.out.println("Oh, some error!");
                     }
                 }
-                else { //если количество циклов больше 8, сбрасываем счетчик и выходим из потока
+                else { //если количество циклов больше 8, сбрасываем счетчик, выходим из потока выставляем таймер в стартовое положение
+                    setTimerStartValue(TOMATO_DURATION);
+                    informationMessage.setText("Let's start!");
                     tomatoCount = 1;
-                    informationMessage.setText("Let's start");
+                    buttonStart.setText("Start");
+                    buttonStop.setDisable(true);
+                    buttonSkip.setDisable(true);
                 }
             });
             /* блок который выполняется по завершению таймера */
 
-            System.out.println("Stop thread: " + Thread.currentThread().getName());
+            System.out.println("Stop thread: " + Thread.currentThread().getName()); //сообщение о том что поток завершен
         }
     }
 
 
+
+    //устанавливаем стартовое значение таймера и Диаграммы
+    private void setTimerStartValue(String minutes) {
+        int seconds = Integer.parseInt(minutes) * 60;
+        labelTimeLeft.setText(TimeConverter.secondsToMinAndSec(seconds)); //устанавливаем таймер в стартовую позицию
+        //возвращаем значения диаграммы в исходное состояние
+        sliceLeftTime.setPieValue(seconds);
+        slicePassedTime.setPieValue(0);
+    }
+
+
+
+    //запускаем таймер в параметры передаем количество минут
+    private void startTimerWithParam(String minutes) {
+        //если таймер не запущен - запускаем
+        if (!ifTimerRunning) {
+            ifTimerRunning = true;
+            Thread tomatoTimer = new Thread(new TimerThread(), minutes);
+            tomatoTimer.start();
+            buttonStart.setText("Pause");
+            buttonStop.setDisable(false);
+            buttonSkip.setDisable(false);
+        }
+        else {
+            paused = !paused;
+            if (paused) {
+                labelIfPaused.setText("(Paused)");
+                buttonStart.setText("UnPause");
+                buttonStop.setDisable(true);
+                buttonSkip.setDisable(true);
+            }
+            else
+            {
+                labelIfPaused.setText("");
+                buttonStart.setText("Pause");
+                buttonStop.setDisable(false);
+                buttonSkip.setDisable(false);
+            }
+        }
+    }
 
 
 }
