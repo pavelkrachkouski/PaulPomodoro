@@ -10,6 +10,7 @@ module pomodoro.paulpomodoro {
     requires org.kordamp.bootstrapfx.core;
     requires eu.hansolo.tilesfx;
     requires javafx.media;
+    requires java.sql;
 
     opens pomodoro.paulpomodoro to javafx.fxml;
     exports pomodoro.paulpomodoro;

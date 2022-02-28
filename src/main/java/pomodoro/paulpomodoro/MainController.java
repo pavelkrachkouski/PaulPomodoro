@@ -3,11 +3,13 @@ package pomodoro.paulpomodoro;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.chart.PieChart;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 
 
 public class MainController {
+
+    public Button buttonDelete;
+    public Button buttonAdd;
 
     private boolean ifTimerRunning = false; //если таймер запущен
     private int tomatoCount = 1; //количество пройденных циклов
@@ -40,6 +42,14 @@ public class MainController {
     private Button buttonSkip;
 
     @FXML
+    private ComboBox<Tasks> taskChoiceBox;
+
+    @FXML
+    private TextField textFieldTask;
+
+
+
+    @FXML
     private PieChart pieChart;
     private PieChart.Data sliceLeftTime;
     private PieChart.Data  slicePassedTime;
@@ -55,12 +65,49 @@ public class MainController {
 
         /* стартовое значение таймера */
         labelTimeLeft.setText(TimeConverter.secondsToMinAndSec(Integer.parseInt(TOMATO_DURATION) * 60));
+
+
+        //создаем таблицу задач если она не существует
+        H2database.createTableIfNotExist();
+
+        //Адаптируем ячейку комбобокса к отображению обьекта Task
+        taskChoiceBox.setCellFactory(p->new ListCell<>() {
+            @Override
+            protected void updateItem(Tasks task, boolean empty) {
+                super.updateItem(task, empty);
+                if (task != null && !empty) {
+                    setText(task.getTask());
+                } else {
+                    setText(null);
+                }
+            }
+        });
+
+        //Адаптируем кнопку комбобокса к отображению обьекта Task
+        taskChoiceBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Tasks item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null && !empty) {
+                    setText(item.getTask());
+                } else {
+                    setText(null);
+                }
+            }
+        });
+
+        //заполняем выпадающий список значениями из базы
+        taskChoiceBox.setItems(H2database.selectAllTasks());
     }
+
+
 
     @FXML
     protected void onStartButtonClick() {
         startTimerWithParam(TOMATO_DURATION);
     }
+
+
 
     @FXML
     protected void onStopButtonClick() {
@@ -72,6 +119,8 @@ public class MainController {
         }
     }
 
+
+
     @FXML
     protected void onSkipButtonClick() {
         if (ifTimerRunning) {
@@ -79,6 +128,45 @@ public class MainController {
         }
         else {
             System.out.println("Метод помидора не запущен!");
+        }
+    }
+
+
+
+    @FXML
+    protected void onDeleteButtonClick() {
+        try {
+            //Получаем id выделенного элемента в выпадающем списке
+            int id = taskChoiceBox.getSelectionModel().getSelectedItem().getId();
+            System.out.println("Delete task with id = " + id);
+            //Удаляем выбранный элемент из выпадающего списка
+            H2database.deleteTask(id);
+            //Очищаем выпадающий список
+            taskChoiceBox.getItems().clear();
+            //Заполняем выпадающий список оставшимеся значениями
+            taskChoiceBox.setItems(H2database.selectAllTasks());
+        }
+        catch (Exception ex) {
+            System.out.println(ex);
+        }
+    }
+
+
+
+    @FXML
+    protected void onAddButtonClick() {
+        try {
+            //Добавляем новую задачу в выпадающий список
+            String task = textFieldTask.getText();
+            textFieldTask.clear();
+            H2database.insertTask(task);
+            //Очищаем выпадающий список
+            taskChoiceBox.getItems().clear();
+            //Заполняем выпадающий список новыми значениями
+            taskChoiceBox.setItems(H2database.selectAllTasks());
+        }
+        catch (Exception ex) {
+            System.out.println(ex);
         }
     }
 
@@ -101,11 +189,12 @@ public class MainController {
                 if (tomatoCount % 2 != 0) {
                     Platform.runLater(() -> {
                         informationMessage.setText("Let's work!");
-                        SoundClass.playStart();
+                        //SoundClass.playStart();
+                        SoundClass.playBreak();
                     });
                 } else {
                     Platform.runLater(() -> {
-                        informationMessage.setText("Let's rest!");
+                        informationMessage.setText("Let's relax!");
                         SoundClass.playBreak();
                     });
                 }
@@ -133,7 +222,7 @@ public class MainController {
                     }
                     break;
                 }
-                //если нажали пропустить, пропускам один помидор "помидоры"
+                //если нажали пропустить, пропускам один помидор
                 if (skip) {
                     skip = false;
                     break;

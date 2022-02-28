@@ -1,13 +1,11 @@
 package pomodoro.paulpomodoro;
 
 import javafx.application.Application;
-import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.chart.PieChart;
 import javafx.stage.Stage;
-
 import java.io.IOException;
+
 
 public class MainApplication extends Application {
 
@@ -20,9 +18,10 @@ public class MainApplication extends Application {
         stage.setTitle("Pomodoro from Paul");
         stage.setScene(scene);
         stage.show();
+
     }
 
     public static void main(String[] args) {
         launch();
-    }
+     }
 }
